@@ -9,23 +9,22 @@ WriteMakefile(
     LICENSE             => "perl",
     PREREQ_PM         => {
         "JSON"                  => 0,
-        "Digest::MD5"           => 0,
         "AnyEvent::HTTP"        => 0,
         "LWP::UserAgent"        => 0,
         "LWP::Protocol::https"  => 0,
-        "JE"                    => 0,
         "Time::Piece"           => 0,
         "Time::Seconds"         => 0,
         "Encode::Locale"        => 0,
+        "Webqq::Encryption"     => 0,
     }, # e.g., Module::Name => 1.1
     dist              => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'Webqq-Client-*' },
+    clean               => { FILES => 'Webqq-Client-* MANIFEST' },
     META_MERGE => {
         resources => {     
             repository=>{
                 type    => 'git',
-                url     => 'git://github.com/sjdy521/Webqq-Client.git',
-                web     =>  'https://github.com/sjdy521/Webqq-Client',
+                url     => 'git://github.com/sjdy521/pfqq.git',
+                web     =>  'https://github.com/sjdy521/pfqq',
             },
         },
     },
@@ -33,5 +32,5 @@ WriteMakefile(
       (
        #ABSTRACT_FROM  => 'lib/Webqq/Client.pm', # retrieve abstract from module
        ABSTRACT       => 'A webqq client in Perl Language',
-       AUTHOR         => 'Perfi <sjdy521@163.com>') : ()),
+       AUTHOR         => 'sjdy521 <sjdy521@163.com>') : ()),
 );

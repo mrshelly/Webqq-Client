@@ -11,7 +11,7 @@ use Webqq::Client::Cache;
 use Webqq::Message::Queue;
 
 #定义模块的版本号
-our $VERSION = "8.2";
+our $VERSION = "8.5.3";
 
 use LWP::UserAgent;#同步HTTP请求客户端
 use Webqq::UserAgent;#异步HTTP请求客户端
@@ -60,6 +60,9 @@ our $CLIENT_COUNT       = 0;
 sub new {
     my $class = shift;
     my %p = @_;
+
+    console "该模块已经停止使用和开发，请换用 Mojo::Webqq 参考文档: https://metacpan.org/pod/Mojo::Webqq\n";
+    exit;
     my $agent = 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062';
 
     my ($second,$microsecond)=gettimeofday;
@@ -107,9 +110,13 @@ sub new {
             group       =>  [],
             discuss     =>  [],
         },
+        encrypt_method              => "perl", #perl|js
         is_first_login              =>  -1,
         is_stop                     =>  0,
         cache_for_uin_to_qq         => Webqq::Client::Cache->new,
+        cache_for_qq_to_uin         => Webqq::Client::Cache->new,
+        cache_for_number_to_uin     => Webqq::Client::Cache->new,
+        cache_for_uin_to_number     => Webqq::Client::Cache->new,
         cache_for_group_sig         => Webqq::Client::Cache->new,
         cache_for_stranger          => Webqq::Client::Cache->new,
         cache_for_friend            => Webqq::Client::Cache->new,
@@ -286,6 +293,12 @@ sub login{
                 $self->_get_img_verify_code();
                 next;
             }
+            elsif($ret == -2 and $self->{encrypt_method} ne "js"){#encrypt_method fail,change another
+                console "登录失败，尝试更换加密算法计算方式，重新登录...\n";
+                $self->{encrypt_method} = "js";
+                $self->relogin();
+                return;
+            }
             elsif($ret == 1){
                    $self->_report()
                 && $self->_check_sig() 
@@ -319,6 +332,8 @@ sub login{
     $self->update_discuss_info();
     #更新最近联系人信息
     $self->update_recent_info();
+    #使用Webqq::Qun添加更多好友和群属性信息
+    $self->_update_extra_info();
     #执行on_login回调
     if(ref $self->{on_login} eq 'CODE'){
         eval{
@@ -341,6 +356,9 @@ sub relogin{
     $self->{asyn_ua}->{cookie_jar} = $self->{cookie_jar};
     #重新设置初始化参数
     $self->{cache_for_uin_to_qq}        = Webqq::Client::Cache->new;
+    $self->{cache_for_qq_to_uin}        = Webqq::Client::Cache->new;
+    $self->{cache_for_number_to_uin}    = Webqq::Client::Cache->new;
+    $self->{cache_for_uin_to_number}    = Webqq::Client::Cache->new;
     $self->{cache_for_group_sig}        = Webqq::Client::Cache->new;
     $self->{cache_for_group}            = Webqq::Client::Cache->new;
     $self->{cache_for_group_member}     = Webqq::Client::Cache->new;
@@ -538,9 +556,10 @@ sub ready{
 
     $self->{watchers}{rand()} = AE::timer 600,600,sub{
         $self->update_group_info();
+        $self->_update_extra_info(type=>"group");
     };
 
-    $self->{watchers}{rand()} = AE::timer 600*2,600,sub{
+    $self->{watchers}{rand()} = AE::timer 600+60,600,sub{
         $self->update_discuss_info();
     };
 
@@ -566,17 +585,17 @@ sub stop {
         };
     }
     else{
-        exit;         
+        CORE::exit;         
     }
 }
 
 sub exit {
     my $self = shift;
-    exit;
+    CORE::exit();
 }
 
 sub EXIT {
-    exit;
+    CORE::exit();
 }
 
 sub run{
@@ -805,6 +824,7 @@ sub update_user_info{
         if(defined $single_long_nick){
             $self->{qq_database}{user}{single_long_nick} = $single_long_nick;
         }   
+        $self->{qq_database}{user}{qq} = $self->{qq_param}{qq};
     }
     else{console "更新个人信息失败\n";}
 }
@@ -958,7 +978,6 @@ sub update_group_info{
             }
         }
         else{console "更新[ $gl->{name} ]群信息失败\n";}
-            
     }
 }
 sub update_recent_info {
@@ -1272,7 +1291,140 @@ sub _detect_new_discuss_member2 {
     }
 }
 
+sub _update_extra_info{
+    my $self = shift;
+    my %p = @_;
+    $p{type} = "all" unless defined  $p{type};
+    eval{require Webqq::Qun;};
+    if($@){
+        console "Webqq::Qun模块未找到，已忽略相关功能\n" if $self->{debug};
+        return;
+    }
+    eval{
+        my $qun = Webqq::Qun->new(qq=>$self->{qq_param}{qq},pwd=>$self->{qq_param}{pwd},debug=>$self->{debug}); 
+        $qun->authorize() or die "authorize fail\n";
+        if($p{type} eq "all"){
+            $qun->get_friend();
+            $qun->get_qun();
+            $self->{extra_qq_database} = {
+                friends  =>  $qun->{friend},
+                group   =>  $qun->{data},
+            };
+            $self->_update_extra_friend_info();
+            $self->_update_extra_group_info();
+        }
+        elsif($p{type} eq "friend"){
+            $qun->get_friend();
+            $self->{extra_qq_database} = {
+                friends =>  $qun->{friend},
+            };
+            $self->_update_extra_friend_info();
+        }
+        elsif($p{type} eq "group"){
+            $qun->get_qun();
+            $self->{extra_qq_database} = {
+                group   =>  $qun->{data},
+            };
+            $self->_update_extra_group_info();
+        }
+    };
+    if($@){
+        console "Webqq::Qun模块执行失败：$@\n" if $self->{debug};
+        return;
+    }
+    return 1;
+    
+}
+sub _update_extra_friend_info{
+    my $self = shift;
+    return unless defined $self->{extra_qq_database}{friends};
+    my %map;
+    my %map_ignore;
+    for (@{$self->{extra_qq_database}{friends}}){
+        next if exists $map_ignore{$_->{nick}};
+        $map_ignore{$_->{nick}} = 1;
+        $map{$_->{nick}} = $_->{qq} ;
+    }      
+    for(@{$self->{qq_database}{friends}}){
+        $_->{qq} = $map{$_->{nick}} if exists $map{$_->{nick}};
+        $self->{cache_for_qq_to_uin}->store($_->{qq},$_->{uin});
+        $self->{cache_for_uin_to_qq}->store($_->{uin},$_->{qq});
+    }
+    return 1;
+}
+sub _update_extra_group_info{
+    my $self = shift;
+    return unless defined $self->{extra_qq_database}{group};
+    my %map_group;
+    my %map_group_ignore;
+    my %map_member;
+    my %map_member_ignore;
+    my @members;
+    for (@{$self->{extra_qq_database}{group}}){
+        next if exists $map_group_ignore{$_->{qun_name}};
+        $map_group_ignore{$_->{qun_name}} = 1;
+        
+        push @members,@{$_->{members}} ;
+        $map_group{$_->{qun_name}}{number} = $_->{qun_number};
+        $map_group{$_->{qun_name}}{type} = $_->{qun_type};
+    }
+    for(@members){
+        next if exists $map_member_ignore{$_->{qun_name},$_->{nick}};
+        $map_member_ignore{$_->{qun_name},$_->{nick}} = 1;
+        
+        $map_member{$_->{qun_name},$_->{nick}}{_count}++;
+        $map_member{$_->{qun_name},$_->{nick}}{qq}                 = $_->{qq};
+        $map_member{$_->{qun_name},$_->{nick}}{qage}               = $_->{qage};
+        $map_member{$_->{qun_name},$_->{nick}}{join_time}          = $_->{join_time};
+        $map_member{$_->{qun_name},$_->{nick}}{last_speak_time}    = $_->{last_speak_time};
+        $map_member{$_->{qun_name},$_->{nick}}{level}              = $_->{level};
+        $map_member{$_->{qun_name},$_->{nick}}{role}               = $_->{role};
+        $map_member{$_->{qun_name},$_->{nick}}{bad_record}         = $_->{bad_record};
+    }
+    for(@{$self->{qq_database}{group_list}}){
+        if(exists $map_group{$_->{name}}){
+            $_->{number} = $map_group{$_->{name}}{number};
+            $_->{type} = $map_group{$_->{name}}{type} ; 
+            $self->{cache_for_number_to_uin}->store($_->{number},$_->{gid});
+            $self->{cache_for_uin_to_number}->store($_->{gid},$_->{number});
+        }
+    }
+    for(@{$self->{qq_database}{group}}){
+        $_->{ginfo}{number} = $map_group{$_->{ginfo}{name}}{number} if exists $map_group{$_->{ginfo}{name}}{number};
+        $_->{ginfo}{type} = $map_group{$_->{ginfo}{name}}{type} if exists $map_group{$_->{ginfo}{name}}{type};
+        next unless ref $_->{minfo} eq 'ARRAY';
+        for my $m (@{$_->{minfo}}){
+            if(exists $map_member{$_->{ginfo}{name},$m->{nick}}){
+                $m->{qq}                = $map_member{$_->{ginfo}{name},$m->{nick}}{qq} ;
+                $m->{qage}              = $map_member{$_->{ginfo}{name},$m->{nick}}{qage} ;
+                $m->{join_time}         = $map_member{$_->{ginfo}{name},$m->{nick}}{join_time} ;
+                $m->{last_speak_time}   = $map_member{$_->{ginfo}{name},$m->{nick}}{last_speak_time} ;
+                $m->{level}             = $map_member{$_->{ginfo}{name},$m->{nick}}{level} ;
+                $m->{role}              = $map_member{$_->{ginfo}{name},$m->{nick}}{role} ;
+                $m->{bad_record}        = $map_member{$_->{ginfo}{name},$m->{nick}}{bad_record} ;
+                $self->{cache_for_uin_to_qq}->store($m->{uin},$m->{qq});
+                $self->{cache_for_qq_to_uin}->store($m->{qq},$m->{uin});
+            }
+        } 
+    }
+}
 
+sub get_uin_from_qq{
+    my $self = shift;
+    my $qq   = shift;   
+    return $self->{cache_for_qq_to_uin}->retrieve($qq);
+}
+
+sub get_uin_from_number {
+    my $self = shift;
+    my $number = shift;
+    return $self->{cache_for_number_to_uin}->retrieve($number);    
+}
+sub get_number_from_uin {
+    my $self = shift;
+    my $uin = shift;
+    return $self->{cache_for_uin_to_number}->retrieve($uin);
+}
 1;
 __END__
 

@@ -194,6 +194,8 @@ sub _load_extra_accessor {
     *Webqq::Message::GroupMessage::Recv::from_qq = sub{
         my $msg = shift;
         my $client = $msg->{client};
+        #my $m = $client->search_member_in_group($msg->{group_code},$msg->{send_uin});
+        #return $m->{qq} if(defined $m and defined $m->{qq});
         return $client->get_qq_from_uin($msg->{send_uin});
     };
     *Webqq::Message::GroupMessage::Recv::from_nick = sub{
@@ -344,6 +346,8 @@ sub _load_extra_accessor {
     *Webqq::Message::Message::Recv::from_qq = sub{
         my $msg = shift;
         my $client = $msg->{client};
+        #my $f = $client->search_friend($msg->{from_uin});
+        #return $f->{qq} if(defined $f and defined $f->{qq});
         return $client->get_qq_from_uin($msg->{from_uin});
     };
     *Webqq::Message::Message::Recv::from_markname = sub{
@@ -644,7 +648,10 @@ sub parse_receive_msg{
             $client->{poll_failure_count} = 0;
         }
         #更新客户端ptwebqq值
-        elsif($json->{retcode} == 116){$client->{qq_param}{ptwebqq} = $json->{p};}
+        elsif($json->{retcode} == 116){
+            $client->{qq_param}{ptwebqq} = $json->{p};
+            $client->{cookie_jar}->set_cookie(0,"ptwebqq",$json->{p},"/","qq.com",);
+        }
         #未重新登录
         elsif($json->{retcode} ==100){
             console "因网络或其他原因与服务器失去联系，客户端需要重新登录...\n";

@@ -1,4 +1,72 @@
 版本更新记录:
+2015-09-24 Webqq::Client v8.5.3
+1）该模块停止使用和开发
+2）修复代码产生的警告
+2015-09-17 Webqq::Client v8.5.2
+1）修复add_job无法执行回调函数的bug 感谢 林海
+
+2015-09-14 Webqq::Client v8.5.1
+1）BUG修复rt.cpan.org#107067
+
+2015-06-19 Webqq::Client v8.5.0
+1）修复pfqq版本号错误
+2）修复Webqq/Message.pm文件代码拼写错误 感谢 arrow.wang 的反馈
+
+2015-06-02 Webqq::Client v8.4.9
+1）修复登录死循环问题
+2）MsgSync插件对发送到irc的消息进行截断防止大量发送被服务器踢下线
+
+2015-05-28 Webqq::Client v8.4.8
+1）Perlcode插件执行代码时默认导入say函数
+2）客户端登录加密算法默认使用纯Perl计算方式，当出现失败时或错误时会自动使用js的方式重试
+3）客户端增加一个encrypt_method的属性，支持设置默认的登录加密算法方式
+4）修复长时间登录导致客户端无法更新好友信息、群信息的bug
+5）完善MsgSync模块
+
+2015-04-23 Webqq::Client v8.4.7
+1）修复依赖模块信息
+
+2015-04-23 Webqq::Client v8.4.6
+1）修复Makefile.PL错误
+2）将Webqq::Encryption单独发布
+
+2015-04-23 Webqq::Client v8.4.5
+1）修复输入正确验证码仍然提示验证码错误的bug 感谢[PERL学习交流 @乀﹒安乐，仅此那么一分钟]的反馈
+2）修复测试脚本注释错误
+3）增加模块的别名pfqq
+4）修复获取qq号，群号等信息如果存在多个相同昵称导致错误的bug
+
+2015-04-18 Webqq::Client v8.4.4
+1）修复客户端定时更新群组信息未生效的bug
+
+2015-04-17 Webqq::Client v8.4.3
+1）支持利用Webqq::Qun来获取群号码、群成员QQ号、好友QQ号
+2）Openqq的api接口支持使用群号码和好友qq号码来指定发送对象
+3）修复Openqq的api自己给自己发送消息导致死循环的bug
+4）修复SmartReply的识别逻辑错误，感谢[perl技术 @kk]反馈
+
+2015-03-31 Webqq::Client v8.4.2
+1）新增Webqq::Encryption::TEA::Perl模块，TEA算法纯perl实现
+
+2015-03-31 Webqq::Client v8.4.1
+1）支持Crypt:::RSA模块进行RSA计算，该模块是纯Perl编写，更易安装
+
+2015-03-31 Webqq::Client v8.4
+1）新增Webqq::Encryption模块，将登录加密中涉及到的TEA/RSA算法进行了分离
+2）可以通过安装Crypt::OpenSSL::RSA/Crypt::OpenSSL::Bignum/MIME::Base64模块来提升计算速度10倍以上
+
+2015-03-11 Webqq::Client v8.3.1
+1）修复少了文档错误
+
+2015-03-11 Webqq::Client v8.3
+1）Plugin函数使用eval执行，防止插件出错导致整个程序退出
+2）更新获取好友列表和群列表的hash函数
+由于腾讯更新了hash算法，导致旧版本无法获取到好友信息和群信息，请尽快更新到此版本
+
+2015-03-10 Webqq::Client v8.2.1
+1）使用git tag进行版本号管理
+2）修复pod文档错误 感谢 @wxg 反馈
+3）修复SmartReply插件api接口获取数据失败后导致主程序退出的bug
 
 2015-02-22 Webqq::Client v8.2
 1）Openqq插件进一步完善，提供获取信息、发送消息完整api

@@ -12,7 +12,13 @@ sub call{
         my($key,$value) = split /=/,$query_string;
         $query_string{$key} = $value;
     }  
-    my $uin = $query_string{uin};
+    my $uin;
+    if(defined $query_string{qq}){
+        $uin = $client->get_uin_from_qq($query_string{qq});
+    }
+    else{
+        $uin = $query_string{uin};
+    }
     my $content = uri_unescape($query_string{content});   
 
     return sub {

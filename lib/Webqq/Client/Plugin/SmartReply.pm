@@ -23,7 +23,7 @@ sub call{
     return if $msg->{allow_plugin} == 0;
     my $msg_type = $msg->{type};    
     if($msg_type eq 'group_message'){
-        return 1  if $msg->{content} !~/\@\Q$self_nick\E/;
+        return 1  if $msg->{content} !~/\@\Q$self_nick \E/;
     }
     my $userid = $msg->from_qq;
     return 1 if exists $ban{$userid};
@@ -82,7 +82,14 @@ sub call{
             print $res->as_string,"\n";
         }
         my $reply;
-        my $data = JSON->new->utf8->decode($res->content);
+        my $data = {}; 
+        eval{
+            $data = JSON->new->utf8->decode($res->content);
+        };
+        if($@){
+            print $@,"\n" if $client->{debug}; 
+            return 1;
+        }
         return 1 if $data->{code}=~/^4000[1-7]$/;
         if($data->{code} == 100000){
             $reply = encode("utf8",$data->{text});
